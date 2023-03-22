@@ -23,19 +23,25 @@ export class TaskService {
   }
 
   public completeTask(index: number): void {
-    this.tasks[index].completed = true;
+    this.tasks.filter((task) => !task.completed)[index].completed = true;
   }
 
-  public deleteTask(index: number): void {
+  public uncompleteTask(index: number): void {
+    this.tasks.filter((task) => task.completed)[index].completed = false;
+  }
+
+  public deleteTask(task: Task): void {
+    const index = this.tasks.indexOf(task);
     this.tasks.splice(index, 1);
   }
 
   public getTask(index: number): Task {
-    return this.tasks[index];
+    return this.tasks.filter((task) => !task.completed)[index];
   }
 
-  public updateTask(index: number, task: Task): void {
-    this.tasks[index] = task;
+  public updateTask(oldTask: Task, newTask: Task): void {
+    const index = this.tasks.indexOf(oldTask);
+    this.tasks[index] = newTask;
   }
 
   public getCompletedTasks(): Task[] {
