@@ -182,7 +182,7 @@ export class Tab1Page {
     const toast = await this.toastController.create({
       message,
       color,
-      duration: 2000,
+      duration: 1000,
     });
     toast.present();
   }
