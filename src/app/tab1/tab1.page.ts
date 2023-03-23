@@ -1,5 +1,5 @@
-import { AfterViewInit, Component, ViewChild } from '@angular/core';
-import { AlertController, IonInput } from '@ionic/angular';
+import { Component, ViewChild } from '@angular/core';
+import { AlertController, IonInput, ToastController } from '@ionic/angular';
 import { TaskService } from '../services/task.service';
 import { Task } from '../interfaces/task';
 import { OverlayEventDetail } from '@ionic/core';
@@ -16,7 +16,8 @@ export class Tab1Page {
 
   constructor(
     private taskService: TaskService,
-    private alertController: AlertController
+    private alertController: AlertController,
+    private toastController: ToastController
   ) {}
 
   ionViewDidEnter() {
@@ -24,29 +25,57 @@ export class Tab1Page {
     this.tasks = this.taskService.getPendingTasks();
   }
 
-  ionTabsDidChange() {
-    console.log('Cambio de tareas pendientes');
-  }
-
   public completeTask(index: number) {
-    this.confirmationDialog('¿Desea marcar esta tarea como completada?', () => {
-      this.taskService.completeTask(index);
-      this.tasks = this.taskService.getPendingTasks();
-    });
+    this.confirmationDialog(
+      '¿Desea marcar esta tarea como completada?',
+      () => {
+        this.taskService.completeTask(index);
+        this.tasks = this.taskService.getPendingTasks();
+      },
+      (respuesta: OverlayEventDetail) => {
+        if (respuesta.role === 'cancel') {
+          this.input.setFocus();
+          this.showToast('Operación cancelada', 'warning');
+        }
+
+        if (respuesta.role === 'confirm') {
+          this.input.setFocus();
+          this.showToast('La tarea ha sido marcada como completada', 'success');
+        }
+      }
+    );
   }
 
   public async deleteTask(task: Task) {
-    this.confirmationDialog('¿Realmente desea eliminar la tarea?', () => {
-      this.taskService.deleteTask(task);
-      this.tasks = this.taskService.getPendingTasks();
-    });
+    this.confirmationDialog(
+      '¿Realmente desea eliminar la tarea?',
+      () => {
+        this.taskService.deleteTask(task);
+        this.tasks = this.taskService.getPendingTasks();
+      },
+      (respuesta: OverlayEventDetail) => {
+        if (respuesta.role === 'cancel') {
+          this.input.setFocus();
+          this.showToast('Operación cancelada', 'warning');
+        }
+
+        if (respuesta.role === 'confirm') {
+          this.input.setFocus();
+          this.showToast('La tarea ha sido eliminada', 'success');
+        }
+      }
+    );
   }
 
   public newTask() {
-    if (this.task.name === '' || this.task === null) return;
+    if (this.task.name === '' || this.task === null) {
+      this.showToast('El nombre de la tarea no puede estar vacío', 'danger');
+      return;
+    }
     this.taskService.addTask({ ...this.task });
     this.task.name = '';
     this.input.setFocus();
+    this.showToast('Tarea agregada', 'success');
     this.tasks = this.taskService.getPendingTasks();
   }
 
@@ -70,6 +99,20 @@ export class Tab1Page {
         {
           text: 'Editar',
           handler: async (data) => {
+            if (data.name === '' || data.name === null) {
+              this.showToast(
+                'El nombre de la tarea no puede estar vacío',
+                'danger'
+              );
+              return false;
+            }
+            if (data.name === task.name) {
+              this.showToast(
+                'El nombre de la tarea no puede ser igual al anterior',
+                'danger'
+              );
+              return false;
+            }
             this.confirmationDialog(
               '¿Desea editar la tarea?',
               undefined,
@@ -80,7 +123,7 @@ export class Tab1Page {
                   completed: false,
                 });
                 this.tasks = this.taskService.getPendingTasks();
-                alert.dismiss();
+                alert.dismiss(undefined, 'confirm');
               }
             );
             return false;
@@ -89,6 +132,18 @@ export class Tab1Page {
       ],
     });
     alert.present();
+    alert.onDidDismiss().then((respuesta) => {
+      console.log(respuesta);
+      if (respuesta.role === 'confirm') {
+        this.input.setFocus();
+        this.showToast('Tarea editada', 'success');
+      }
+
+      if (respuesta.role === 'cancel') {
+        this.input.setFocus();
+        this.showToast('Operación cancelada', 'warning');
+      }
+    });
   }
 
   private async confirmationDialog(
@@ -118,5 +173,17 @@ export class Tab1Page {
     alert.onDidDismiss().then((respuesta) => {
       if (dismissFunction) dismissFunction(respuesta);
     });
+  }
+
+  private async showToast(
+    message: string,
+    color: 'success' | 'danger' | 'warning'
+  ) {
+    const toast = await this.toastController.create({
+      message,
+      color,
+      duration: 2000,
+    });
+    toast.present();
   }
 }
