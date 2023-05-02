@@ -1,54 +1,72 @@
+import { Observable } from 'rxjs';
+
 import { Injectable } from '@angular/core';
+import {
+  addDoc,
+  collection,
+  collectionData,
+  CollectionReference,
+  deleteDoc,
+  doc,
+  docData, DocumentData,
+  Firestore,
+  query, updateDoc,
+  where
+} from '@angular/fire/firestore';
+
 import { Task } from '../interfaces/task';
 
 @Injectable({
   providedIn: 'root',
 })
 export class TaskService {
-  private tasks: Task[] = [];
-
-  constructor() {
-    this.tasks.push({
-      name: 'tarea 1',
-      completed: false,
-    });
+  private collection: CollectionReference<DocumentData>;
+  constructor(private readonly firestore: Firestore) {
+    this.collection = collection(firestore, 'tasks');
   }
 
-  public getTasks(): Task[] {
-    return this.tasks;
+  public async addTask(task: Task) {
+    const ref = await addDoc(this.collection, task);
+    return docData(ref);
   }
 
-  public addTask(task: Task): void {
-    this.tasks.push(task);
+  public completeTask(id: string): Promise<void> {
+    const dcmt = doc(this.firestore, `${this.collection.path}/${id}`);
+    return updateDoc(dcmt, { completed: true });
   }
 
-  public completeTask(index: number): void {
-    this.tasks.filter((task) => !task.completed)[index].completed = true;
+  public uncompleteTask(id: string): Promise<void> {
+    const dcmt = doc(this.firestore, `${this.collection.path}/${id}`);
+    return updateDoc(dcmt, { completed: false });
   }
 
-  public uncompleteTask(index: number): void {
-    this.tasks.filter((task) => task.completed)[index].completed = false;
+  public deleteTask(task: Task): Promise<void> {
+    const dcmt = doc(this.firestore, `${this.collection.path}/${task.id}`);
+    return deleteDoc(dcmt);
   }
 
-  public deleteTask(task: Task): void {
-    const index = this.tasks.indexOf(task);
-    this.tasks.splice(index, 1);
+  public getTask(index: number): Observable<Task> {
+    return docData(
+      doc(this.firestore, `${this.collection.path}/${index}`)
+    ) as Observable<Task>;
   }
 
-  public getTask(index: number): Task {
-    return this.tasks.filter((task) => !task.completed)[index];
+  public updateTask(task: Task): void {
+    const dcmt = doc(this.firestore, `${this.collection.path}/${task.id}`);
+    updateDoc(dcmt, { ...task });
   }
 
-  public updateTask(oldTask: Task, newTask: Task): void {
-    const index = this.tasks.indexOf(oldTask);
-    this.tasks[index] = newTask;
+  public getCompletedTasks(): Observable<Task[]> {
+    return collectionData(
+      query(this.collection, where('completed', '==', true)),
+      { idField: 'id' }
+    ) as Observable<Task[]>;
   }
 
-  public getCompletedTasks(): Task[] {
-    return this.tasks.filter((task) => task.completed);
-  }
-
-  public getPendingTasks(): Task[] {
-    return this.tasks.filter((task) => !task.completed);
+  public getPendingTasks(): Observable<Task[]> {
+    return collectionData(
+      query(this.collection, where('completed', '==', false)),
+      { idField: 'id' }
+    ) as Observable<Task[]>;
   }
 }

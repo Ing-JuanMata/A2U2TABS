@@ -9,20 +9,17 @@
     <ion-row>
       <ion-col size="12">
         <ion-list>
-          <ion-item-sliding
-            *ngFor="let task of tasks;let i = index"
-            #slidingItem
-          >
+          <ion-item-sliding *ngFor="let task of tasks" #slidingItem>
             <ion-item>
               <ion-label>{{task.name}}</ion-label>
             </ion-item>
             <ion-item-options
               side="start"
-              (ionSwipe)="uncompleteTask(i); slidingItem.close()"
+              (ionSwipe)="uncompleteTask(task.id!!); slidingItem.close()"
             >
               <ion-item-option
                 color="warning"
-                (click)="uncompleteTask(i)"
+                (click)="uncompleteTask(task.id!!)"
                 expandable
               >
                 <ion-icon slot="start" name="remove-circle-outline"></ion-icon>

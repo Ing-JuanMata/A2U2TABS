@@ -1,15 +1,17 @@
-import { Component } from '@angular/core';
+import { Component, OnDestroy } from '@angular/core';
 import { Task } from '../interfaces/task';
 import { TaskService } from '../services/task.service';
 import { AlertController, ToastController } from '@ionic/angular';
 import { OverlayEventDetail } from '@ionic/core';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-tab2',
   templateUrl: 'tab2.page.html',
   styleUrls: ['tab2.page.scss'],
 })
-export class Tab2Page {
+export class Tab2Page implements OnDestroy {
+  task$: Subscription;
   tasks: Task[] = [];
   task: Task = { name: '', completed: false };
 
@@ -17,29 +19,26 @@ export class Tab2Page {
     private taskService: TaskService,
     private alertController: AlertController,
     private toastController: ToastController
-  ) {}
-
-  ionViewDidEnter() {
-    this.tasks = this.taskService.getCompletedTasks();
+  ) {
+    this.task$ = this.taskService.getCompletedTasks().subscribe((tasks) => {
+      this.tasks = tasks;
+    });
   }
 
-  public uncompleteTask(index: number) {
+  public uncompleteTask(id: string) {
     this.confirmationDialog(
       '¿Desea marcar la tarea como no completada?',
       () => {
-        this.taskService.uncompleteTask(index);
-        this.tasks = this.taskService.getCompletedTasks();
-      },
-      (respuesta: OverlayEventDetail) => {
-        if (respuesta.role === 'cancel') {
-          this.showToast('Operación cancelada', 'warning');
-        }
-
-        if (respuesta.role === 'confirm') {
+        this.taskService.uncompleteTask(id).then(() => {
           this.showToast(
             'La tarea ha sido desmarcada como completada',
             'success'
           );
+        });
+      },
+      (respuesta: OverlayEventDetail) => {
+        if (respuesta.role === 'cancel') {
+          this.showToast('Operación cancelada', 'warning');
         }
       }
     );
@@ -50,7 +49,6 @@ export class Tab2Page {
       '¿Realmente desea eliminar la tarea?',
       () => {
         this.taskService.deleteTask(task);
-        this.tasks = this.taskService.getCompletedTasks();
       },
       (respuesta: OverlayEventDetail) => {
         if (respuesta.role === 'cancel') {
@@ -103,5 +101,9 @@ export class Tab2Page {
       duration: 1000,
     });
     toast.present();
+  }
+
+  ngOnDestroy() {
+    this.task$.unsubscribe();
   }
 }

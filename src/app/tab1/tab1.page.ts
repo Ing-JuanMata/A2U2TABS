@@ -1,15 +1,17 @@
-import { Component, ViewChild } from '@angular/core';
+import { Component, OnDestroy, ViewChild } from '@angular/core';
 import { AlertController, IonInput, ToastController } from '@ionic/angular';
 import { TaskService } from '../services/task.service';
 import { Task } from '../interfaces/task';
 import { OverlayEventDetail } from '@ionic/core';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-tab1',
   templateUrl: 'tab1.page.html',
   styleUrls: ['tab1.page.scss'],
 })
-export class Tab1Page {
+export class Tab1Page implements OnDestroy {
+  task$: Subscription;
   tasks: Task[] = [];
   task: Task = { name: '', completed: false };
   @ViewChild('input') input!: IonInput;
@@ -18,29 +20,38 @@ export class Tab1Page {
     private taskService: TaskService,
     private alertController: AlertController,
     private toastController: ToastController
-  ) {}
+  ) {
+    this.task$ = this.taskService.getPendingTasks().subscribe((tasks) => {
+      this.tasks = tasks;
+    });
+  }
 
   ionViewDidEnter() {
     this.input.setFocus();
-    this.tasks = this.taskService.getPendingTasks();
   }
 
-  public completeTask(index: number) {
+  public completeTask(id: string) {
     this.confirmationDialog(
       '¿Desea marcar esta tarea como completada?',
       () => {
-        this.taskService.completeTask(index);
-        this.tasks = this.taskService.getPendingTasks();
+        this.taskService
+          .completeTask(id)
+          .then(() => {
+            this.input.setFocus();
+            this.showToast(
+              'La tarea ha sido marcada como completada',
+              'success'
+            );
+          })
+          .catch((error) => {
+            this.input.setFocus();
+            this.showToast(error.message, 'danger');
+          });
       },
       (respuesta: OverlayEventDetail) => {
         if (respuesta.role === 'cancel') {
           this.input.setFocus();
           this.showToast('Operación cancelada', 'warning');
-        }
-
-        if (respuesta.role === 'confirm') {
-          this.input.setFocus();
-          this.showToast('La tarea ha sido marcada como completada', 'success');
         }
       }
     );
@@ -50,18 +61,15 @@ export class Tab1Page {
     this.confirmationDialog(
       '¿Realmente desea eliminar la tarea?',
       () => {
-        this.taskService.deleteTask(task);
-        this.tasks = this.taskService.getPendingTasks();
+        this.taskService.deleteTask(task).then(() => {
+          this.input.setFocus();
+          this.showToast('La tarea ha sido eliminada', 'success');
+        });
       },
       (respuesta: OverlayEventDetail) => {
         if (respuesta.role === 'cancel') {
           this.input.setFocus();
           this.showToast('Operación cancelada', 'warning');
-        }
-
-        if (respuesta.role === 'confirm') {
-          this.input.setFocus();
-          this.showToast('La tarea ha sido eliminada', 'success');
         }
       }
     );
@@ -72,11 +80,17 @@ export class Tab1Page {
       this.showToast('El nombre de la tarea no puede estar vacío', 'danger');
       return;
     }
-    this.taskService.addTask({ ...this.task });
-    this.task.name = '';
-    this.input.setFocus();
-    this.showToast('Tarea agregada', 'success');
-    this.tasks = this.taskService.getPendingTasks();
+    this.taskService
+      .addTask(this.task)
+      .then(() => {
+        this.task.name = '';
+        this.input.setFocus();
+        this.showToast('Tarea agregada', 'success');
+      })
+      .catch((error) => {
+        this.input.setFocus();
+        this.showToast(error.message, 'danger');
+      });
   }
 
   public async updateTask(task: Task) {
@@ -118,11 +132,11 @@ export class Tab1Page {
               undefined,
               (respuesta: OverlayEventDetail) => {
                 if (respuesta.role !== 'confirm') return;
-                this.taskService.updateTask(task, {
+                this.taskService.updateTask({
+                  ...task,
                   name: data.name,
                   completed: false,
                 });
-                this.tasks = this.taskService.getPendingTasks();
                 alert.dismiss(undefined, 'confirm');
               }
             );
@@ -185,5 +199,9 @@ export class Tab1Page {
       duration: 1000,
     });
     toast.present();
+  }
+
+  ngOnDestroy() {
+    this.task$.unsubscribe();
   }
 }
